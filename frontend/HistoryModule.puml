@@ -1,0 +1,68 @@
+@startuml HistoryModule
+' Domain
+interface HistoryRepository {
+  + getHistory(year: Int, month: Int): Flow<HistoryResult<HistoryList>>
+}
+
+class HistoryResult<T> {
+  + data: T?
+  + error: String?
+}
+
+class HistoryList {
+  + history: List<HistoryItem>?
+}
+
+class HistoryItem {
+  + date: String
+  + totalIntake: Double
+  + targetIntake: Double
+}
+
+' Data
+class HistoryDatabase {
+  + historyDao: HistoryDao
+}
+
+interface HistoryDao {
+  + getHistoryByDate(date: String): HistoryItem
+  + insertHistory(item: HistoryItem)
+  + deleteHistory(item: HistoryItem)
+}
+
+' Presentation
+class HistoryState {
+  + historyItems: List<HistoryItem>
+  + selectedDate: LocalDate
+  + isLoading: Boolean
+  + isError: Boolean
+}
+
+class HistoryViewModel {
+  - repository: HistoryRepository
+  + state: HistoryState
+  + onAction(action: HistoryAction)
+  + loadHistory(year: Int, month: Int)
+}
+
+enum HistoryAction {
+  + ChangeDate
+  + Refresh
+}
+
+' DI
+class HistoryModule {
+  + providesHistoryRepository()
+  + providesHistoryDatabase()
+  + providesHistoryViewModel()
+}
+
+' Relationships
+HistoryViewModel "1" --> "1" HistoryRepository : uses
+HistoryRepository "1" --> "1" HistoryDao : uses
+HistoryModule "1" ..> "1..*" HistoryViewModel : creates
+HistoryModule "1" ..> "1" HistoryRepository : creates
+HistoryModule "1" ..> "1" HistoryDatabase : creates
+HistoryList "1" --> "0..*" HistoryItem : contains
+HistoryDatabase "1" --> "1" HistoryDao : contains
+@enduml

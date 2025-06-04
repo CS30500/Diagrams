@@ -1,0 +1,27 @@
+'==================== 4. 로그인 시퀀스 ====================
+@startuml Login_Sequence
+sequenceDiagram
+  participant User
+  participant UI  as "Login Screen"
+  participant VM  as "LoginViewModel"
+  participant Repo as "AuthRepository"
+  participant API as "Auth API"
+
+  User ->> UI  : Enter Credentials
+  User ->> UI  : Tap Login
+  UI   ->> VM  : onAction(LoginAction.Login)
+  activate VM
+  VM   ->> VM  : Update Loading State
+  VM   ->> Repo: login(email, password)
+  activate Repo
+  Repo ->> API : POST /auth/login
+  activate API
+  API  -->> Repo: {token, userData}
+  deactivate API
+  Repo -->> VM : Success
+  deactivate Repo
+  VM   ->> VM  : Update Auth State
+  VM   -->> UI : Update UI
+  deactivate VM
+  UI   -->> User: Navigate to Main
+@enduml

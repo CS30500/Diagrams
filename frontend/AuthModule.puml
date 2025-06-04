@@ -1,0 +1,73 @@
+@startuml AuthModule
+' Auth Domain
+interface AuthRepository {
+  + register(email: String, password: String, checkPassword: String): AuthResult<Unit>
+  + login(email: String, password: String): AuthResult<Unit>
+  + authenticate(): AuthResult<Unit>
+}
+
+class AuthResult<T> {
+  + data: T?
+  + error: String?
+}
+
+' Presentation – Login
+class LoginState {
+  + email: String
+  + password: String
+  + isLoading: Boolean
+  + isError: Boolean
+}
+
+class LoginViewModel {
+  - repository: AuthRepository
+  + state: LoginState
+  + onAction(action: LoginAction)
+  - login()
+  - authenticate()
+}
+
+enum LoginAction {
+  + Login
+  + ChangeEmail
+  + ChangePassword
+}
+
+' Presentation – Register
+class RegisterState {
+  + email: String
+  + password: String
+  + checkPassword: String
+  + isLoading: Boolean
+  + isError: Boolean
+}
+
+class RegisterViewModel {
+  - repository: AuthRepository
+  + state: RegisterState
+  + onAction(action: RegisterAction)
+  - register()
+  - authenticate()
+}
+
+enum RegisterAction {
+  + Register
+  + ChangeEmail
+  + ChangePassword
+  + ChangeCheckPassword
+}
+
+' DI
+class AuthModule {
+  + providesAuthRepository()
+  + providesLoginViewModel()
+  + providesRegisterViewModel()
+}
+
+' Relationships
+LoginViewModel "1" --> "1" AuthRepository : uses
+RegisterViewModel "1" --> "1" AuthRepository : uses
+AuthModule "1" ..> "1" AuthRepository : creates
+AuthModule "1" ..> "1..*" LoginViewModel : creates
+AuthModule "1" ..> "1..*" RegisterViewModel : creates
+@enduml

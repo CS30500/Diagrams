@@ -1,0 +1,60 @@
+@startuml WaterModule
+' Domain
+interface WaterRepository {
+  + getDailyHydration(date: String): Flow<WaterResult<DailyHydration>>
+  + logWaterIntake(amount: Double): Result<Unit>
+  + setDailyGoal(goal: Double): Result<Unit>
+}
+
+class DailyHydration {
+  + date: String
+  + targetMl: Double
+  + totalIntakeMl: Double
+  + environment: Environment?
+}
+
+class Environment {
+  + outsideTemp: Double
+  + waterTemp: Double
+  + humidity: Double
+}
+
+class WaterResult<T> {
+  + data: T?
+  + error: String?
+}
+
+' Presentation
+class WaterState {
+  + dailyHydration: DailyHydration?
+  + environment: Environment?
+  + isLoading: Boolean
+  + isError: Boolean
+}
+
+class WaterViewModel {
+  - repository: WaterRepository
+  + state: WaterState
+  + onAction(action: WaterAction)
+  + loadDailyHydration(date: String)
+  + logWaterIntake(amount: Double)
+}
+
+enum WaterAction {
+  + LoadData
+  + LogIntake
+  + SetGoal
+}
+
+' DI
+class WaterModule {
+  + providesWaterRepository()
+  + providesWaterViewModel()
+}
+
+' Relationships
+WaterViewModel "1" --> "1" WaterRepository : uses
+WaterModule "1" ..> "1" WaterRepository : creates
+WaterModule "1" ..> "1..*" WaterViewModel : creates
+DailyHydration "1" --> "0..1" Environment : contains
+@enduml

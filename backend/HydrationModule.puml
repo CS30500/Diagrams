@@ -1,0 +1,42 @@
+@startuml HydrationModule
+
+' Domain
+interface HydrationService {
+  +log_water_intake(user_id: int, amount_ml: float): WaterLog
+  +get_daily_summary(user_id: int, date: date): DailyHydrationSummary
+  +get_water_history(user_id: int, start_date: date, end_date: date): List[WaterLog]
+  +set_daily_goal(user_id: int, goal_ml: float): UserProfile
+}
+
+' Models
+class WaterLog {
+  +id: int
+  +user_id: int
+  +amount_ml: float
+  +timestamp: datetime
+}
+
+class DailyHydrationSummary {
+  +date: date
+  +total_intake_ml: float
+  +target_ml: float
+  +logs: List[WaterLog]
+}
+
+' Router
+class HydrationRouter {
+  +router: APIRouter
+  +log_water(amount: float, current_user: User)
+  +get_daily_summary(date: date | None, current_user: User)
+  +get_history(start_date: date, end_date: date, current_user: User)
+  +set_goal(goal_ml: float, current_user: User)
+}
+
+' Relationships
+HydrationRouter "1" --> "1" HydrationService : uses
+HydrationService "1" --> "0..*" WaterLog : returns
+HydrationService "1" --> "0..*" DailyHydrationSummary : returns
+HydrationService "1" --> "0..*" UserProfile : updates
+DailyHydrationSummary "1" --> "0..*" WaterLog : contains
+
+@enduml

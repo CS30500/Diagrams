@@ -1,0 +1,462 @@
+@startuml CompleteBackend
+
+!define INFRA_COLOR #E8F4FD
+!define SERVICE_COLOR #FFF2E8
+!define CONTROLLER_COLOR #F0F8E8
+!define MODEL_COLOR #E8F0FF
+
+' Force vertical layout
+top to bottom direction
+
+' ==================== CORE INFRASTRUCTURE LAYER ====================
+package "Core Infrastructure" INFRA_COLOR {
+  
+  class FastAPI {
+    + app: FastAPI
+    + include_routers()
+    + add_exception_handlers()
+    + add_middleware()
+  }
+  
+  FastAPI ||--|| Database
+  
+  class Database {
+    + engine: Engine
+    + SessionLocal: sessionmaker
+    + get_db(): Generator[Session, None, None]
+  }
+  
+  Database ||--|| Config
+  
+  class Config {
+    + SECRET_KEY: str
+    + ALGORITHM: str
+    + ACCESS_TOKEN_EXPIRE_MINUTES: int
+    + DATABASE_URL: str
+    + load_config()
+  }
+  
+  Config ||--|| SecurityUtils
+  
+  class SecurityUtils {
+    + create_access_token(data: dict): str
+    + verify_token(token: str): dict
+  }
+  
+  SecurityUtils ||--|| ErrorHandler
+  
+  class ErrorHandler {
+    + http_exception_handler(request: Request, exc: HTTPException): JSONResponse
+    + validation_exception_handler(request: Request, exc: RequestValidationError): JSONResponse
+  }
+  
+  ErrorHandler ||--|| Dependencies
+  
+  class Dependencies {
+    + get_db()
+    + get_current_user()
+    + get_current_active_user()
+  }
+}
+
+Dependencies ||--|| AuthService
+
+' ==================== AUTH SERVICE LAYER ====================
+package "Auth Services" SERVICE_COLOR {
+  
+  interface AuthService {
+    + register_user(user_data: UserCreate): User
+    + authenticate_user(credentials: OAuth2PasswordRequestForm): Token
+    + get_current_user(token: str): User
+    + get_current_active_user(current_user: User): User
+  }
+  
+  AuthService ||--|| AuthUtils
+  
+  class AuthUtils {
+    + verify_password(plain_password: str, hashed_password: str): bool
+    + get_password_hash(password: str): str
+    + create_access_token(data: dict): str
+  }
+}
+
+AuthUtils ||--|| ProfileService
+
+' ==================== PROFILE SERVICE LAYER ====================
+package "Profile Services" SERVICE_COLOR {
+  
+  interface ProfileService {
+    + get_user_profile(user_id: int): UserProfile
+    + update_user_profile(user_id: int, profile_data: ProfileUpdate): UserProfile
+  }
+}
+
+ProfileService ||--|| HydrationService
+
+' ==================== HYDRATION SERVICE LAYER ====================
+package "Hydration Services" SERVICE_COLOR {
+  
+  interface HydrationService {
+    + log_water_intake(user_id: int, amount_ml: float): WaterLog
+    + get_daily_summary(user_id: int, date: date): DailyHydrationSummary
+    + get_water_history(user_id: int, start_date: date, end_date: date): List[WaterLog]
+    + set_daily_goal(user_id: int, goal_ml: float): UserProfile
+  }
+}
+
+HydrationService ||--|| ActivityService
+
+' ==================== ACTIVITY SERVICE LAYER ====================
+package "Activity Services" SERVICE_COLOR {
+  
+  interface ActivityService {
+    + log_activity(user_id: int, activity_data: ActivityCreate): ActivityLog
+    + get_user_activities(user_id: int, date: date): List[ActivityLog]
+    + get_activity_summary(user_id: int, start_date: date, end_date: date): ActivitySummary
+  }
+}
+
+ActivityService ||--|| BottleService
+
+' ==================== BOTTLE & LOCATION SERVICE LAYER ====================
+package "Bottle & Location Services" SERVICE_COLOR {
+  
+  interface BottleService {
+    + record_temperature(temperature: float, bottle_id: str): BottleTemperature
+    + get_bottle_status(bottle_id: str): BottleStatus
+  }
+  
+  BottleService ||--|| LocationService
+  
+  interface LocationService {
+    + update_location(user_id: int, location_data: LocationUpdate): UserLocation
+    + get_nearby_water_fountains(location: LocationQuery): List[WaterFountain]
+  }
+}
+
+LocationService ||--|| AuthRouter
+
+' ==================== AUTH CONTROLLER LAYER ====================
+package "Auth Controllers" CONTROLLER_COLOR {
+  
+  class AuthRouter {
+    + router: APIRouter
+    + login(form_data: OAuth2PasswordRequestForm)
+    + read_users_me(current_user: User)
+    + create_user(user: UserCreate)
+  }
+}
+
+AuthRouter ||--|| ProfileRouter
+
+' ==================== PROFILE CONTROLLER LAYER ====================
+package "Profile Controllers" CONTROLLER_COLOR {
+  
+  class ProfileRouter {
+    + router: APIRouter
+    + get_profile(current_user: User)
+    + update_profile(profile_data: ProfileUpdate, current_user: User)
+  }
+}
+
+ProfileRouter ||--|| HydrationRouter
+
+' ==================== HYDRATION CONTROLLER LAYER ====================
+package "Hydration Controllers" CONTROLLER_COLOR {
+  
+  class HydrationRouter {
+    + router: APIRouter
+    + log_water(amount: float, current_user: User)
+    + get_daily_summary(date: date | None, current_user: User)
+    + get_history(start_date: date, end_date: date, current_user: User)
+    + set_goal(goal_ml: float, current_user: User)
+  }
+}
+
+HydrationRouter ||--|| ActivityRouter
+
+' ==================== ACTIVITY CONTROLLER LAYER ====================
+package "Activity Controllers" CONTROLLER_COLOR {
+  
+  class ActivityRouter {
+    + router: APIRouter
+    + log_activity(activity: ActivityCreate, current_user: User)
+    + get_activities(date: date | None, current_user: User)
+    + get_summary(start_date: date, end_date: date, current_user: User)
+  }
+}
+
+ActivityRouter ||--|| BottleRouter
+
+' ==================== BOTTLE & LOCATION CONTROLLER LAYER ====================
+package "Bottle & Location Controllers" CONTROLLER_COLOR {
+  
+  class BottleRouter {
+    + router: APIRouter
+    + record_temperature(temperature: float, bottle_id: str)
+    + get_status(bottle_id: str)
+  }
+  
+  BottleRouter ||--|| LocationRouter
+  
+  class LocationRouter {
+    + router: APIRouter
+    + update_location(location: LocationUpdate, current_user: User)
+    + get_nearby_fountains(latitude: float, longitude: float, radius_km: float)
+  }
+}
+
+LocationRouter ||--|| User
+
+' ==================== AUTH MODEL LAYER ====================
+package "Auth Models" MODEL_COLOR {
+  
+  class User {
+    + id: int
+    + email: EmailStr
+    + hashed_password: str
+    + is_active: bool
+    + created_at: datetime
+    + updated_at: datetime
+  }
+  
+  User ||--|| UserCreate
+  
+  class UserCreate {
+    + email: EmailStr
+    + password: str
+  }
+  
+  UserCreate ||--|| Token
+  
+  class Token {
+    + access_token: str
+    + token_type: str
+  }
+}
+
+Token ||--|| UserProfile
+
+' ==================== PROFILE MODEL LAYER ====================
+package "Profile Models" MODEL_COLOR {
+  
+  class UserProfile {
+    + id: int
+    + user_id: int
+    + height: float
+    + weight: float
+    + age: int
+    + sex: str
+    + daily_goal_ml: float
+    + updated_at: datetime
+  }
+  
+  UserProfile ||--|| ProfileUpdate
+  
+  class ProfileUpdate {
+    + height: float | None
+    + weight: float | None
+    + age: int | None
+    + sex: str | None
+    + daily_goal_ml: float | None
+  }
+}
+
+ProfileUpdate ||--|| WaterLog
+
+' ==================== HYDRATION MODEL LAYER ====================
+package "Hydration Models" MODEL_COLOR {
+  
+  class WaterLog {
+    + id: int
+    + user_id: int
+    + amount_ml: float
+    + timestamp: datetime
+  }
+  
+  WaterLog ||--|| DailyHydrationSummary
+  
+  class DailyHydrationSummary {
+    + date: date
+    + total_intake_ml: float
+    + target_ml: float
+    + logs: List[WaterLog]
+  }
+}
+
+DailyHydrationSummary ||--|| ActivityLog
+
+' ==================== ACTIVITY MODEL LAYER ====================
+package "Activity Models" MODEL_COLOR {
+  
+  class ActivityLog {
+    + id: int
+    + user_id: int
+    + steps: int
+    + calories_burned: float
+    + distance_km: float
+    + activity_date: date
+    + created_at: datetime
+  }
+  
+  ActivityLog ||--|| ActivityCreate
+  
+  class ActivityCreate {
+    + steps: int
+    + calories_burned: float
+    + distance_km: float
+    + activity_date: date
+  }
+  
+  ActivityCreate ||--|| ActivitySummary
+  
+  class ActivitySummary {
+    + total_steps: int
+    + total_calories: float
+    + total_distance: float
+    + average_steps: float
+    + activities: List[ActivityLog]
+  }
+}
+
+ActivitySummary ||--|| BottleTemperature
+
+' ==================== BOTTLE & LOCATION MODEL LAYER ====================
+package "Bottle & Location Models" MODEL_COLOR {
+  
+  class BottleTemperature {
+    + id: int
+    + bottle_id: str
+    + temperature_c: float
+    + timestamp: datetime
+  }
+  
+  BottleTemperature ||--|| BottleStatus
+  
+  class BottleStatus {
+    + bottle_id: str
+    + last_temperature: float
+    + last_seen: datetime
+    + battery_level: int | None
+  }
+  
+  BottleStatus ||--|| UserLocation
+  
+  class UserLocation {
+    + id: int
+    + user_id: int
+    + latitude: float
+    + longitude: float
+    + timestamp: datetime
+  }
+  
+  UserLocation ||--|| LocationUpdate
+  
+  class LocationUpdate {
+    + latitude: float
+    + longitude: float
+  }
+  
+  LocationUpdate ||--|| WaterFountain
+  
+  class WaterFountain {
+    + id: int
+    + name: str
+    + latitude: float
+    + longitude: float
+    + status: str
+  }
+}
+
+' ==================== RELATIONSHIPS ====================
+
+' Core Infrastructure Relationships
+FastAPI "1" --> "1" Database : uses
+FastAPI "1" --> "1" Config : uses
+FastAPI "1" --> "1" ErrorHandler : uses
+FastAPI "1" --> "1" Dependencies : uses
+Database "1" --> "1" Config : reads from
+Dependencies "1" --> "1" Database : uses
+Dependencies "1" --> "1" AuthService : uses
+
+' Controller to Service Relationships
+AuthRouter "1" --> "1" AuthService : uses
+ProfileRouter "1" --> "1" ProfileService : uses
+HydrationRouter "1" --> "1" HydrationService : uses
+ActivityRouter "1" --> "1" ActivityService : uses
+BottleRouter "1" --> "1" BottleService : uses
+LocationRouter "1" --> "1" LocationService : uses
+
+' FastAPI to Controller Relationships
+FastAPI "1" --> "1..*" AuthRouter : includes
+FastAPI "1" --> "1..*" ProfileRouter : includes
+FastAPI "1" --> "1..*" HydrationRouter : includes
+FastAPI "1" --> "1..*" ActivityRouter : includes
+FastAPI "1" --> "1..*" BottleRouter : includes
+FastAPI "1" --> "1..*" LocationRouter : includes
+
+' Service to Model Relationships
+AuthService "1" --> "0..*" User : manages
+AuthService "1" --> "0..*" Token : creates
+AuthService "1" --> "1" AuthUtils : uses
+AuthUtils "1" --> "1" SecurityUtils : extends
+ProfileService "1" --> "0..*" UserProfile : manages
+ProfileService "1" --> "0..*" ProfileUpdate : processes
+HydrationService "1" --> "0..*" WaterLog : manages
+HydrationService "1" --> "0..*" DailyHydrationSummary : creates
+HydrationService "1" --> "1" UserProfile : updates
+ActivityService "1" --> "0..*" ActivityLog : manages
+ActivityService "1" --> "0..*" ActivitySummary : creates
+BottleService "1" --> "0..*" BottleTemperature : manages
+BottleService "1" --> "0..*" BottleStatus : tracks
+LocationService "1" --> "0..*" UserLocation : manages
+LocationService "1" --> "0..*" WaterFountain : provides
+
+' User-Centric Relationships
+User "1" --> "0..1" UserProfile : has
+User "1" --> "0..*" WaterLog : owns
+User "1" --> "0..*" ActivityLog : owns
+User "1" --> "0..*" UserLocation : has
+User "1" --> "0..1" BottleStatus : owns
+
+' Aggregation Relationships
+DailyHydrationSummary "1" --> "0..*" WaterLog : contains
+ActivitySummary "1" --> "0..*" ActivityLog : contains
+
+' Cross-Module Authentication
+ProfileRouter "1" ..> "1" AuthService : depends on authentication
+HydrationRouter "1" ..> "1" AuthService : depends on authentication
+ActivityRouter "1" ..> "1" AuthService : depends on authentication
+BottleRouter "1" ..> "1" AuthService : depends on authentication
+LocationRouter "1" ..> "1" AuthService : depends on authentication
+
+' Notes for Documentation
+note top of FastAPI
+  **Core Infrastructure**
+  - Application entry point
+  - Request routing
+  - Middleware management
+end note
+
+note top of AuthService
+  **Service Layer**
+  - Business logic
+  - Data processing
+  - Domain operations
+end note
+
+note top of AuthRouter
+  **Controller Layer**
+  - HTTP endpoints
+  - Request/Response handling
+  - Input validation
+end note
+
+note top of User
+  **Model Layer**
+  - Data structures
+  - Database entities
+  - Domain models
+end note
+
+@enduml 

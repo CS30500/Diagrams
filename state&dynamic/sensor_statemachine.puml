@@ -1,0 +1,9 @@
+'==================== 7. 센서 상태 머신 ====================
+@startuml Sensor_StateMachine
+  [*] --> Idle
+  Idle      --> Detect     : event trigger
+  Idle    --> Polling : interval elapsed
+  Polling --> Idle    : data captured
+  Polling --> Error   : comm / range fault
+  Error   --> Idle    : recover & retry
+@enduml

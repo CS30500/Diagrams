@@ -1,0 +1,30 @@
+'==================== 5. 물 섭취 기록 시퀀스 ====================
+@startuml WaterIntake_Sequence
+  participant User
+  participant UI   as "Water Screen"
+  participant VM   as "WaterViewModel"
+  participant Repo as "WaterRepository"
+  participant API  as "Water API"
+  participant BLE  as "BLE Module"
+
+  User ->> UI   : Add Water
+  UI   ->> VM   : onAction(LogIntake)
+  activate VM
+  VM   ->> VM   : Update Loading State
+  VM   ->> Repo : logWaterIntake(amount)
+  activate Repo
+  Repo ->> API  : POST /water/intake
+  activate API
+  API  -->> Repo: Success
+  deactivate API
+  Repo ->> BLE  : Send Data
+  activate BLE
+  BLE  -->> Repo: ACK
+  deactivate BLE
+  Repo -->> VM  : Success
+  deactivate Repo
+  VM   ->> VM   : Refresh Data
+  VM   -->> UI  : Update UI
+  deactivate VM
+  UI   -->> User: Show Updated Intake
+@enduml

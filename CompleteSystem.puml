@@ -1,0 +1,313 @@
+@startuml CompleteSystem
+
+!define BACKEND_COLOR #E8F4FD
+!define FRONTEND_COLOR #FFF2E8
+!define MODULE_COLOR #F0F8E8
+
+' ==================== BACKEND APPLICATION ====================
+package "Backend Application" BACKEND_COLOR {
+  
+  ' Core Infrastructure
+  rectangle "Core Infrastructure" {
+    class FastAPI {
+      + app: FastAPI
+      + include_routers()
+      + add_exception_handlers()
+      + add_middleware()
+    }
+
+    class Database {
+      + engine: Engine
+      + SessionLocal: sessionmaker
+      + get_db()
+    }
+
+    class Config {
+      + SECRET_KEY: String
+      + ALGORITHM: String
+      + ACCESS_TOKEN_EXPIRE_MINUTES: Integer
+      + DATABASE_URL: String
+      + load_config()
+    }
+  }
+
+  ' Backend Services Layer
+  rectangle "Services Layer" {
+    class AuthService {
+      + register_user()
+      + authenticate_user()
+      + get_current_user()
+    }
+
+    class ProfileService {
+      + get_user_profile()
+      + update_user_profile()
+    }
+
+    class HydrationService {
+      + log_water_intake()
+      + get_daily_summary()
+      + get_water_history()
+    }
+
+    class ActivityService {
+      + log_activity()
+      + get_user_activities()
+      + get_activity_summary()
+    }
+
+    class BottleLocationService {
+      + record_temperature()
+      + get_bottle_status()
+      + update_location()
+    }
+  }
+
+  ' Backend Controllers Layer
+  rectangle "Controllers Layer" {
+    class AuthController {
+      + login()
+      + register()
+      + get_current_user()
+    }
+
+    class ProfileController {
+      + get_profile()
+      + update_profile()
+    }
+
+    class HydrationController {
+      + log_water()
+      + get_daily_summary()
+      + get_history()
+    }
+
+    class ActivityController {
+      + log_activity()
+      + get_activities()
+      + get_summary()
+    }
+
+    class BottleLocationController {
+      + record_temperature()
+      + get_status()
+      + update_location()
+    }
+  }
+
+  ' Backend Models Layer
+  rectangle "Models Layer" {
+    class UserModel {
+      + id: int
+      + email: str
+      + hashed_password: str
+    }
+
+    class ProfileModel {
+      + user_id: int
+      + height: float
+      + weight: float
+      + daily_goal_ml: float
+    }
+
+    class HydrationModel {
+      + user_id: int
+      + amount_ml: float
+      + timestamp: datetime
+    }
+
+    class ActivityModel {
+      + user_id: int
+      + steps: int
+      + calories_burned: float
+    }
+
+    class BottleLocationModel {
+      + bottle_id: str
+      + temperature: float
+      + latitude: float
+      + longitude: float
+    }
+  }
+}
+
+' ==================== FRONTEND APPLICATION ====================
+package "Frontend Application" FRONTEND_COLOR {
+  
+  ' Frontend Core Layer
+  rectangle "Core Layer" {
+    interface CoreRepository {
+      + postBleTempData()
+      + postBleDistanceData()
+      + bleConnect()
+      + postFcmToken()
+    }
+
+    class BleService {
+      + handleConnection()
+      + handleDisconnection()
+      + sendData()
+    }
+
+    class NetworkClient {
+      - httpClient: HttpClient
+      + get()
+      + post()
+    }
+  }
+
+  ' Frontend Repository Layer
+  rectangle "Repository Layer" {
+    interface AuthRepository {
+      + register()
+      + login()
+      + authenticate()
+    }
+
+    interface ProfileRepository {
+      + getProfile()
+      + updateProfile()
+    }
+
+    interface WaterRepository {
+      + getDailyHydration()
+      + logWaterIntake()
+      + setDailyGoal()
+    }
+
+    interface HistoryRepository {
+      + getHistory()
+    }
+  }
+
+  ' Frontend ViewModel Layer
+  rectangle "ViewModel Layer" {
+    class AuthViewModel {
+      + loginState: LoginState
+      + registerState: RegisterState
+      + onAction()
+    }
+
+    class ProfileViewModel {
+      + state: ProfileState
+      + loadProfile()
+      + updateProfile()
+    }
+
+    class WaterViewModel {
+      + state: WaterState
+      + loadDailyHydration()
+      + logWaterIntake()
+    }
+
+    class HistoryViewModel {
+      + state: HistoryState
+      + loadHistory()
+    }
+  }
+
+  ' Frontend UI Layer
+  rectangle "UI Layer" {
+    class LoginScreen {
+      + email: String
+      + password: String
+      + onLoginClick()
+    }
+
+    class ProfileScreen {
+      + profile: Profile
+      + onUpdateClick()
+    }
+
+    class WaterScreen {
+      + dailyHydration: DailyHydration
+      + onLogWaterClick()
+    }
+
+    class HistoryScreen {
+      + historyItems: List
+      + onDateChange()
+    }
+  }
+}
+
+' ==================== SYSTEM CONNECTIONS ====================
+
+' Backend Internal Flow (Top to Bottom)
+FastAPI ||--|| Database
+FastAPI ||--|| Config
+FastAPI ||--|| AuthController
+FastAPI ||--|| ProfileController
+FastAPI ||--|| HydrationController
+FastAPI ||--|| ActivityController
+FastAPI ||--|| BottleLocationController
+
+AuthController ||--|| AuthService
+ProfileController ||--|| ProfileService
+HydrationController ||--|| HydrationService
+ActivityController ||--|| ActivityService
+BottleLocationController ||--|| BottleLocationService
+
+AuthService ||--|| UserModel
+ProfileService ||--|| ProfileModel
+HydrationService ||--|| HydrationModel
+ActivityService ||--|| ActivityModel
+BottleLocationService ||--|| BottleLocationModel
+
+' Frontend Internal Flow (Top to Bottom)
+CoreRepository ||--|| NetworkClient
+CoreRepository ||--|| BleService
+
+AuthRepository ||--|| CoreRepository
+ProfileRepository ||--|| CoreRepository
+WaterRepository ||--|| CoreRepository
+HistoryRepository ||--|| CoreRepository
+
+AuthViewModel ||--|| AuthRepository
+ProfileViewModel ||--|| ProfileRepository
+WaterViewModel ||--|| WaterRepository
+HistoryViewModel ||--|| HistoryRepository
+
+LoginScreen ||--|| AuthViewModel
+ProfileScreen ||--|| ProfileViewModel
+WaterScreen ||--|| WaterViewModel
+HistoryScreen ||--|| HistoryViewModel
+
+' Cross-System Communication (Frontend to Backend)
+NetworkClient ..> FastAPI : HTTP/REST API
+AuthRepository ..> AuthController : Authentication
+ProfileRepository ..> ProfileController : Profile Data
+WaterRepository ..> HydrationController : Hydration Data
+HistoryRepository ..> ActivityController : Activity Data
+CoreRepository ..> BottleLocationController : IoT Data
+
+' Notes for Documentation
+note top of FastAPI
+  **Backend REST API Server**
+  - Handles HTTP requests
+  - Manages authentication
+  - Provides data endpoints
+end note
+
+note top of CoreRepository
+  **Frontend Data Layer**
+  - Handles API communication
+  - Manages local storage
+  - Processes IoT data
+end note
+
+note bottom of "Backend Application"
+  **Server-Side Components**
+  - Python FastAPI
+  - PostgreSQL Database
+  - RESTful Architecture
+end note
+
+note bottom of "Frontend Application"
+  **Client-Side Components**
+  - Kotlin/Android
+  - MVVM Architecture
+  - Bluetooth LE Integration
+end note
+
+@enduml 

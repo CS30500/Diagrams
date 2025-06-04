@@ -1,0 +1,71 @@
+@startuml BottleLocationModule
+
+' Domain
+interface BottleService {
+  +record_temperature(temperature: float, bottle_id: str): BottleTemperature
+  +get_bottle_status(bottle_id: str): BottleStatus
+}
+
+interface LocationService {
+  +update_location(user_id: int, location_data: LocationUpdate): UserLocation
+  +get_nearby_water_fountains(location: LocationQuery): List[WaterFountain]
+}
+
+' Models
+class BottleTemperature {
+  +id: int
+  +bottle_id: str
+  +temperature_c: float
+  +timestamp: datetime
+}
+
+class BottleStatus {
+  +bottle_id: str
+  +last_temperature: float
+  +last_seen: datetime
+  +battery_level: int | None
+}
+
+class UserLocation {
+  +id: int
+  +user_id: int
+  +latitude: float
+  +longitude: float
+  +timestamp: datetime
+}
+
+class LocationUpdate {
+  +latitude: float
+  +longitude: float
+}
+
+class WaterFountain {
+  +id: int
+  +name: str
+  +latitude: float
+  +longitude: float
+  +status: str
+}
+
+' Router
+class BottleRouter {
+  +router: APIRouter
+  +record_temperature(temperature: float, bottle_id: str)
+  +get_status(bottle_id: str)
+}
+
+class LocationRouter {
+  +router: APIRouter
+  +update_location(location: LocationUpdate, current_user: User)
+  +get_nearby_fountains(latitude: float, longitude: float, radius_km: float)
+}
+
+' Relationships
+BottleRouter "1" --> "1" BottleService : uses
+LocationRouter "1" --> "1" LocationService : uses
+BottleService "1" --> "0..*" BottleTemperature : returns
+BottleService "1" --> "0..*" BottleStatus : returns
+LocationService "1" --> "0..*" UserLocation : returns
+LocationService "1" --> "0..*" WaterFountain : returns
+
+@enduml

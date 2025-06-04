@@ -1,0 +1,38 @@
+@startuml Backend_Server_StateMachine
+[*]           --> Idle
+Idle          --> Authenticating  : /auth/* 요청
+Idle          --> Processing      : 일반 API 요청
+Idle          --> SchedulerJob    : 주기적 Job Tick
+
+state Authenticating {
+    [*] --> Validating
+    Validating --> AuthOK    : 토큰 유효
+    Validating --> AuthError : 토큰 오류
+    AuthError  --> [*]
+    AuthOK     --> [*]
+}
+
+Authenticating.AuthOK --> Processing
+Authenticating.AuthError --> Error
+
+state Processing {
+    [*] --> DB_RW           : MongoDB 접근
+    DB_RW --> Notifying     : FCM 필요 시
+    DB_RW --> Responding
+    Notifying --> Responding
+    Responding --> [*]
+}
+
+Processing --> Idle
+Error      --> Idle
+
+state SchedulerJob {
+    [*] --> Idle
+    Idle --> CheckingUsers  : interval(5s)
+    CheckingUsers --> Evaluating
+    Evaluating --> SendingPush
+    SendingPush --> Idle
+}
+
+SchedulerJob --> Idle
+@enduml

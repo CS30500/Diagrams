@@ -1,0 +1,14 @@
+'==================== FrontEnd – Session StateMachine ====================
+@startuml FrontEnd_Session_StateMachine
+  [*] --> Initializing
+  Initializing --> NoSession    : no token
+
+  NoSession --> Authenticating : login()
+  Authenticating  --> Authenticated  : success
+  Authenticating  --> NoSession : fail / cancel
+
+  Authenticated --> Syncing : BLE or Network Sync
+  Syncing --> Authenticated : done / error handled
+
+  Authenticated --> NoSession : logout()
+@enduml 

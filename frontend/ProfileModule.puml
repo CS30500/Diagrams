@@ -1,0 +1,47 @@
+@startuml ProfileModule
+' Domain
+interface ProfileRepository {
+  + getProfile(): Flow<Profile>
+  + updateProfile(profile: Profile): Result<Unit>
+}
+
+class Profile {
+  + userId: String
+  + name: String
+  + email: String
+  + dailyGoal: Double
+  + notificationEnabled: Boolean
+}
+
+' Presentation
+class ProfileState {
+  + profile: Profile?
+  + isLoading: Boolean
+  + isError: Boolean
+}
+
+class ProfileViewModel {
+  - repository: ProfileRepository
+  + state: ProfileState
+  + onAction(action: ProfileAction)
+  + loadProfile()
+  + updateProfile(profile: Profile)
+}
+
+enum ProfileAction {
+  + LoadProfile
+  + UpdateProfile
+  + ChangeNotificationSetting
+}
+
+' DI
+class ProfileModule {
+  + providesProfileRepository()
+  + providesProfileViewModel()
+}
+
+' Relationships
+ProfileViewModel "1" --> "1" ProfileRepository : uses
+ProfileModule "1" ..> "1" ProfileRepository : creates
+ProfileModule "1" ..> "1..*" ProfileViewModel : creates
+@enduml

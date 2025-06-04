@@ -1,0 +1,418 @@
+@startuml CompleteFrontend
+
+!define CORE_COLOR #E8F4FD
+!define REPOSITORY_COLOR #FFF2E8
+!define VIEWMODEL_COLOR #F0F8E8
+!define UI_COLOR #E8F0FF
+
+' Force vertical layout
+top to bottom direction
+
+' ==================== CORE INFRASTRUCTURE LAYER ====================
+package "Core Infrastructure" CORE_COLOR {
+  
+  interface CoreRepository {
+    + postBleTempData(temperature: Float): CoreResult<Unit>
+    + postBleDistanceData(distance: Float): CoreResult<Unit>
+    + bleConnect()
+    + bleDisconnect()
+    + sendCommandToDevice(command: String)
+    + postFcmToken(fcmToken: String): CoreResult<Unit>
+  }
+  
+  CoreRepository ||--|| CoreResult
+  
+  class CoreResult<T> {
+    + data: T?
+    + error: String?
+  }
+  
+  CoreResult ||--|| BleService
+  
+  class BleService {
+    - handleConnection()
+    - handleDisconnection()
+    - sendData(data: String)
+  }
+  
+  BleService ||--|| NetworkClient
+  
+  class NetworkClient {
+    - httpClient: HttpClient
+    + get(url: String)
+    + post(url: String, body: Any)
+  }
+  
+  NetworkClient ||--|| CoreModule
+  
+  class CoreModule {
+    + providesCoreRepository()
+    + providesNetworkClient()
+    + providesBleService()
+  }
+}
+
+CoreModule ||--|| AuthRepository
+
+' ==================== AUTH REPOSITORY LAYER ====================
+package "Auth Repository" REPOSITORY_COLOR {
+  
+  interface AuthRepository {
+    + register(email: String, password: String, checkPassword: String): AuthResult<Unit>
+    + login(email: String, password: String): AuthResult<Unit>
+    + authenticate(): AuthResult<Unit>
+  }
+  
+  AuthRepository ||--|| AuthResult
+  
+  class AuthResult<T> {
+    + data: T?
+    + error: String?
+  }
+  
+  AuthResult ||--|| AuthModule
+  
+  class AuthModule {
+    + providesAuthRepository()
+    + providesLoginViewModel()
+    + providesRegisterViewModel()
+  }
+}
+
+AuthModule ||--|| ProfileRepository
+
+' ==================== PROFILE REPOSITORY LAYER ====================
+package "Profile Repository" REPOSITORY_COLOR {
+  
+  interface ProfileRepository {
+    + getProfile(): Flow<Profile>
+    + updateProfile(profile: Profile): Result<Unit>
+  }
+  
+  ProfileRepository ||--|| Profile
+  
+  class Profile {
+    + userId: String
+    + name: String
+    + email: String
+    + dailyGoal: Double
+    + notificationEnabled: Boolean
+  }
+  
+  Profile ||--|| ProfileModule
+  
+  class ProfileModule {
+    + providesProfileRepository()
+    + providesProfileViewModel()
+  }
+}
+
+ProfileModule ||--|| WaterRepository
+
+' ==================== HYDRATION REPOSITORY LAYER ====================
+package "Hydration Repository" REPOSITORY_COLOR {
+  
+  interface WaterRepository {
+    + getDailyHydration(date: String): Flow<WaterResult<DailyHydration>>
+    + logWaterIntake(amount: Double): Result<Unit>
+    + setDailyGoal(goal: Double): Result<Unit>
+  }
+  
+  WaterRepository ||--|| DailyHydration
+  
+  class DailyHydration {
+    + date: String
+    + targetMl: Double
+    + totalIntakeMl: Double
+    + environment: Environment?
+  }
+  
+  DailyHydration ||--|| Environment
+  
+  class Environment {
+    + outsideTemp: Double
+    + waterTemp: Double
+    + humidity: Double
+  }
+  
+  Environment ||--|| WaterResult
+  
+  class WaterResult<T> {
+    + data: T?
+    + error: String?
+  }
+  
+  WaterResult ||--|| WaterModule
+  
+  class WaterModule {
+    + providesWaterRepository()
+    + providesWaterViewModel()
+  }
+}
+
+WaterModule ||--|| HistoryRepository
+
+' ==================== HISTORY REPOSITORY LAYER ====================
+package "History Repository" REPOSITORY_COLOR {
+  
+  interface HistoryRepository {
+    + getHistory(year: Int, month: Int): Flow<HistoryResult<HistoryList>>
+  }
+  
+  HistoryRepository ||--|| HistoryResult
+  
+  class HistoryResult<T> {
+    + data: T?
+    + error: String?
+  }
+  
+  HistoryResult ||--|| HistoryList
+  
+  class HistoryList {
+    + history: List<HistoryItem>?
+  }
+  
+  HistoryList ||--|| HistoryItem
+  
+  class HistoryItem {
+    + date: String
+    + totalIntake: Double
+    + targetIntake: Double
+  }
+  
+  HistoryItem ||--|| HistoryDatabase
+  
+  class HistoryDatabase {
+    + historyDao: HistoryDao
+  }
+  
+  HistoryDatabase ||--|| HistoryDao
+  
+  interface HistoryDao {
+    + getHistoryByDate(date: String): HistoryItem
+    + insertHistory(item: HistoryItem)
+    + deleteHistory(item: HistoryItem)
+  }
+  
+  HistoryDao ||--|| HistoryModule
+  
+  class HistoryModule {
+    + providesHistoryRepository()
+    + providesHistoryDatabase()
+    + providesHistoryViewModel()
+  }
+}
+
+HistoryModule ||--|| LoginState
+
+' ==================== AUTH VIEWMODEL LAYER ====================
+package "Auth ViewModels" VIEWMODEL_COLOR {
+  
+  class LoginState {
+    + email: String
+    + password: String
+    + isLoading: Boolean
+    + isError: Boolean
+  }
+  
+  LoginState ||--|| LoginViewModel
+  
+  class LoginViewModel {
+    - repository: AuthRepository
+    + state: LoginState
+    + onAction(action: LoginAction)
+    - login()
+    - authenticate()
+  }
+  
+  LoginViewModel ||--|| LoginAction
+  
+  enum LoginAction {
+    + Login
+    + ChangeEmail
+    + ChangePassword
+  }
+  
+  LoginAction ||--|| RegisterState
+  
+  class RegisterState {
+    + email: String
+    + password: String
+    + checkPassword: String
+    + isLoading: Boolean
+    + isError: Boolean
+  }
+  
+  RegisterState ||--|| RegisterViewModel
+  
+  class RegisterViewModel {
+    - repository: AuthRepository
+    + state: RegisterState
+    + onAction(action: RegisterAction)
+    - register()
+    - authenticate()
+  }
+  
+  RegisterViewModel ||--|| RegisterAction
+  
+  enum RegisterAction {
+    + Register
+    + ChangeEmail
+    + ChangePassword
+    + ChangeCheckPassword
+  }
+}
+
+RegisterAction ||--|| ProfileState
+
+' ==================== PROFILE VIEWMODEL LAYER ====================
+package "Profile ViewModels" VIEWMODEL_COLOR {
+  
+  class ProfileState {
+    + profile: Profile?
+    + isLoading: Boolean
+    + isError: Boolean
+  }
+  
+  ProfileState ||--|| ProfileViewModel
+  
+  class ProfileViewModel {
+    - repository: ProfileRepository
+    + state: ProfileState
+    + onAction(action: ProfileAction)
+    + loadProfile()
+    + updateProfile(profile: Profile)
+  }
+  
+  ProfileViewModel ||--|| ProfileAction
+  
+  enum ProfileAction {
+    + LoadProfile
+    + UpdateProfile
+    + ChangeNotificationSetting
+  }
+}
+
+ProfileAction ||--|| WaterState
+
+' ==================== HYDRATION VIEWMODEL LAYER ====================
+package "Hydration ViewModels" VIEWMODEL_COLOR {
+  
+  class WaterState {
+    + dailyHydration: DailyHydration?
+    + environment: Environment?
+    + isLoading: Boolean
+    + isError: Boolean
+  }
+  
+  WaterState ||--|| WaterViewModel
+  
+  class WaterViewModel {
+    - repository: WaterRepository
+    + state: WaterState
+    + onAction(action: WaterAction)
+    + loadDailyHydration(date: String)
+    + logWaterIntake(amount: Double)
+  }
+  
+  WaterViewModel ||--|| WaterAction
+  
+  enum WaterAction {
+    + LoadData
+    + LogIntake
+    + SetGoal
+  }
+}
+
+WaterAction ||--|| HistoryState
+
+' ==================== HISTORY VIEWMODEL LAYER ====================
+package "History ViewModels" VIEWMODEL_COLOR {
+  
+  class HistoryState {
+    + historyItems: List<HistoryItem>
+    + selectedDate: LocalDate
+    + isLoading: Boolean
+    + isError: Boolean
+  }
+  
+  HistoryState ||--|| HistoryViewModel
+  
+  class HistoryViewModel {
+    - repository: HistoryRepository
+    + state: HistoryState
+    + onAction(action: HistoryAction)
+    + loadHistory(year: Int, month: Int)
+  }
+  
+  HistoryViewModel ||--|| HistoryAction
+  
+  enum HistoryAction {
+    + ChangeDate
+    + Refresh
+  }
+}
+
+' ==================== RELATIONSHIPS ====================
+
+' Core Infrastructure Relationships
+CoreModule "1" ..> "1" CoreRepository : creates
+CoreModule "1" ..> "1" NetworkClient : creates
+CoreModule "1" ..> "1" BleService : creates
+
+' Repository Module Relationships
+AuthModule "1" ..> "1" AuthRepository : creates
+ProfileModule "1" ..> "1" ProfileRepository : creates
+WaterModule "1" ..> "1" WaterRepository : creates
+HistoryModule "1" ..> "1" HistoryRepository : creates
+HistoryModule "1" ..> "1" HistoryDatabase : creates
+
+' Cross-module Repository Dependencies
+WaterRepository "1" --> "1" CoreRepository : uses
+HistoryRepository "1" --> "1" CoreRepository : uses
+ProfileRepository "1" --> "1" CoreRepository : uses
+AuthRepository "1" --> "1" CoreRepository : uses
+
+' ViewModel to Repository Relationships
+LoginViewModel "1" --> "1" AuthRepository : uses
+RegisterViewModel "1" --> "1" AuthRepository : uses
+ProfileViewModel "1" --> "1" ProfileRepository : uses
+WaterViewModel "1" --> "1" WaterRepository : uses
+HistoryViewModel "1" --> "1" HistoryRepository : uses
+
+' Module to ViewModel Relationships
+AuthModule "1" ..> "1..*" LoginViewModel : creates
+AuthModule "1" ..> "1..*" RegisterViewModel : creates
+ProfileModule "1" ..> "1..*" ProfileViewModel : creates
+WaterModule "1" ..> "1..*" WaterViewModel : creates
+HistoryModule "1" ..> "1..*" HistoryViewModel : creates
+
+' Data Model Relationships
+DailyHydration "1" --> "0..1" Environment : contains
+HistoryList "1" --> "0..*" HistoryItem : contains
+HistoryDatabase "1" --> "1" HistoryDao : contains
+HistoryRepository "1" --> "1" HistoryDao : uses
+
+' Notes for Documentation
+note top of CoreRepository
+  **Core Infrastructure**
+  - Network communication
+  - Bluetooth LE services
+  - Cross-cutting concerns
+end note
+
+note top of AuthRepository
+  **Repository Layer**
+  - Data access abstraction
+  - API communication
+  - Local storage management
+end note
+
+note top of LoginViewModel
+  **ViewModel Layer**
+  - UI state management
+  - Business logic
+  - User interaction handling
+end note
+
+@enduml 

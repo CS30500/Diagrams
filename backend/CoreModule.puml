@@ -1,0 +1,52 @@
+@startuml CoreModule
+
+' Database
+class Database {
+  +engine: Engine
+  +SessionLocal: sessionmaker
+  +get_db(): Generator[Session, None, None]
+}
+
+' Config
+class Config {
+  +SECRET_KEY: str
+  +ALGORITHM: str
+  +ACCESS_TOKEN_EXPIRE_MINUTES: int
+  +DATABASE_URL: str
+  +load_config()
+}
+
+' Utils
+class SecurityUtils {
+  +create_access_token(data: dict): str
+  +verify_token(token: str): dict
+}
+
+class ErrorHandler {
+  +http_exception_handler(request: Request, exc: HTTPException): JSONResponse
+  +validation_exception_handler(request: Request, exc: RequestValidationError): JSONResponse
+}
+
+' Main App
+class FastAPI {
+  +app: FastAPI
+  +include_routers()
+  +add_exception_handlers()
+  +add_middleware()
+}
+
+' Dependencies
+class Dependencies {
+  +get_db()
+  +get_current_user()
+  +get_current_active_user()
+}
+
+' Relationships
+FastAPI "1" --> "1" Database : uses
+FastAPI "1" --> "1" Config : uses
+FastAPI "1" --> "1..*" Routers : includes
+FastAPI "1" --> "1" ErrorHandler : uses
+FastAPI "1" --> "1" Dependencies : uses
+
+@enduml

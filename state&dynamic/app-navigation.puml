@@ -1,0 +1,18 @@
+'==================== 1. App-Navigation (모바일 화면 전이) ====================
+@startuml AppNavigation_StateMachine
+  [*] --> Splash
+  Splash --> Login : App Start
+  Login  --> SignUp : Select Sign Up
+  SignUp --> Login  : Back / Complete
+  Login  --> Main   : Login Success
+
+  state Main {
+    [*]      --> Water
+    Water    --> History : Select History Tab
+    History  --> Water   : Select Home Tab
+    Water    --> Profile : Select Profile Tab
+    Profile  --> Water   : Select Home Tab
+  }
+
+  Main --> [*] : App Exit
+@enduml

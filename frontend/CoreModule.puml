@@ -1,0 +1,42 @@
+@startuml CoreModule
+' Core Domain
+interface CoreRepository {
+  + postBleTempData(temperature: Float): CoreResult<Unit>
+  + postBleDistanceData(distance: Float): CoreResult<Unit>
+  + bleConnect()
+  + bleDisconnect()
+  + sendCommandToDevice(command: String)
+  + postFcmToken(fcmToken: String): CoreResult<Unit>
+}
+
+class CoreResult<T> {
+  + data: T?
+  + error: String?
+}
+
+' BLE Service
+class BleService {
+  - handleConnection()
+  - handleDisconnection()
+  - sendData(data: String)
+}
+
+' Network
+class NetworkClient {
+  - httpClient: HttpClient
+  + get(url: String)
+  + post(url: String, body: Any)
+}
+
+' DI
+class CoreModule {
+  + providesCoreRepository()
+  + providesNetworkClient()
+  + providesBleService()
+}
+
+' Relationships
+CoreModule "1" ..> "1" CoreRepository : creates
+CoreModule "1" ..> "1" NetworkClient : creates
+CoreModule "1" ..> "1" BleService : creates
+@enduml

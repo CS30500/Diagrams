@@ -1,0 +1,14 @@
+'==================== FrontEnd – FCM Registration Sequence ====================
+@startuml FrontEnd_FCM_Sequence
+  participant App
+  participant PushService as "PushNotificationService"
+  participant CoreRepo  as "CoreRepositoryImpl"
+  participant API as "FastAPI /fcm/register"
+
+  App ->> PushService : onNewToken(token)
+  PushService ->> CoreRepo : postFcmToken(token)
+  CoreRepo ->> API : POST /fcm/register\nAuthorization: Bearer jwt
+  API -->> CoreRepo : 200 OK
+  CoreRepo -->> PushService : Success
+  PushService -->> App : registration result
+@enduml 

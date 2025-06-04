@@ -1,0 +1,12 @@
+'==================== 3. 데이터-패치 재시도 상태 머신 ====================
+@startuml DataFetch_Retry_StateMachine
+  [*] --> Idle
+  Idle      --> Fetching : data needed
+  Fetching  --> Success  : Data Received
+  Fetching  --> Error    : Network Issue
+  Success   --> Idle     : Reset
+  Error     --> Retrying : Auto Retry
+  Retrying  --> Fetching : Retry
+  Retrying  --> Error    : Max Retries
+  Error     --> Idle     : User Action
+@enduml

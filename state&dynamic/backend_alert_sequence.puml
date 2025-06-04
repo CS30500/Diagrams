@@ -1,0 +1,21 @@
+'==================== BackEnd – Hydration Alert Sequence ====================
+@startuml Backend_Alert_Sequence
+  participant Scheduler
+  participant NotificationService as "run_hydration_alerts()"
+  participant AlertConditions
+  participant DB as "MongoDB"
+  participant FCM as "Firebase Cloud Messaging"
+
+  Scheduler ->> NotificationService : alert_job()
+  loop For each user
+      NotificationService ->> DB : users.find()
+      NotificationService ->> AlertConditions : should_alert_*()
+      AlertConditions ->> DB : read recent logs
+      alt Any condition true
+          NotificationService ->> FCM : messaging.send()
+          FCM -->> NotificationService : response
+          NotificationService ->> DB : alert_logs.insert()
+      end
+  end
+  NotificationService -->> Scheduler : alerts[]
+@enduml 

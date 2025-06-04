@@ -1,0 +1,41 @@
+@startuml ProfileModule
+
+' Domain
+interface ProfileService {
+  +get_user_profile(user_id: int): UserProfile
+  +update_user_profile(user_id: int, profile_data: ProfileUpdate): UserProfile
+}
+
+' Models
+class UserProfile {
+  +id: int
+  +user_id: int
+  +height: float
+  +weight: float
+  +age: int
+  +sex: str
+  +daily_goal_ml: float
+  +updated_at: datetime
+}
+
+class ProfileUpdate {
+  +height: float | None
+  +weight: float | None
+  +age: int | None
+  +sex: str | None
+  +daily_goal_ml: float | None
+}
+
+' Router
+class ProfileRouter {
+  +router: APIRouter
+  +get_profile(current_user: User)
+  +update_profile(profile_data: ProfileUpdate, current_user: User)
+}
+
+' Relationships
+ProfileRouter "1" --> "1" ProfileService : uses
+ProfileService "1" --> "0..*" UserProfile : returns
+ProfileService "1" --> "0..*" ProfileUpdate : accepts
+
+@enduml

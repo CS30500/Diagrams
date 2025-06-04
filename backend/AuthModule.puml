@@ -1,0 +1,52 @@
+@startuml AuthModule
+
+' Domain
+interface AuthService {
+  + register_user(user_data: UserCreate): User
+  + authenticate_user(credentials: OAuth2PasswordRequestForm): Token
+  + get_current_user(token: str): User
+  + get_current_active_user(current_user: User): User
+}
+
+' Models
+class User {
+  +id: int
+  +email: EmailStr
+  +hashed_password: str
+  +is_active: bool
+  +created_at: datetime
+  +updated_at: datetime
+}
+
+class UserCreate {
+  +email: EmailStr
+  +password: str
+}
+
+class Token {
+  +access_token: str
+  +token_type: str
+}
+
+' Router
+class AuthRouter {
+  +router: APIRouter
+  +login(form_data: OAuth2PasswordRequestForm)
+  +read_users_me(current_user: User)
+  +create_user(user: UserCreate)
+}
+
+' Utils
+class AuthUtils {
+  +verify_password(plain_password: str, hashed_password: str): bool
+  +get_password_hash(password: str): str
+  +create_access_token(data: dict): str
+}
+
+' Relationships
+AuthRouter "1" --> "1" AuthService : uses
+AuthService "1" --> "0..*" User : returns
+AuthService "1" --> "0..*" Token : returns
+AuthService "1" --> "1" AuthUtils : uses
+
+@enduml

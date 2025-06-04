@@ -1,0 +1,25 @@
+'==================== 6. End-to-End 흐름(요약) ====================
+@startuml EndToEnd_Flow
+skinparam direction topDown
+rectangle "User Action"  as A
+rectangle "UI Layer"     as B
+rectangle "ViewModel"    as C
+rectangle "Repository"   as D
+rectangle "Local DB"     as E
+rectangle "Remote API"   as F
+rectangle "BLE Module"   as G
+rectangle "Physical Device" as H
+
+A --> B
+B --> C
+C --> D
+D --> E
+D --> F
+D --> G
+G --> H
+F --> D
+E --> D
+D --> C
+C --> B
+B --> A
+@enduml

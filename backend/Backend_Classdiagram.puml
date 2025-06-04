@@ -1,0 +1,104 @@
+@startuml Backend_Classdiagram
+
+' Main Application
+class FastAPI {
+  + app: FastAPI
+  + include_routers()
+  + add_exception_handlers()
+  + add_middleware()
+}
+
+class Database {
+  + engine: Engine
+  + SessionLocal: sessionmaker
+  + get_db()
+}
+
+class Config {
+  + SECRET_KEY: String
+  + ALGORITHM: String
+  + ACCESS_TOKEN_EXPIRE_MINUTES: Integer
+  + DATABASE_URL: String
+  + load_config()
+}
+
+class ErrorHandler {
+  + http_exception_handler()
+  + validation_exception_handler()
+}
+
+' Modules
+class AuthModule {
+  + provides_auth_service()
+  + provides_auth_router()
+}
+
+class ProfileModule {
+  + provides_profile_service()
+  + provides_profile_router()
+}
+
+class HydrationModule {
+  + provides_hydration_service()
+  + provides_hydration_router()
+}
+
+class ActivityModule {
+  + provides_activity_service()
+  + provides_activity_router()
+}
+
+class BottleLocationModule {
+  + provides_bottle_service()
+  + provides_location_service()
+  + provides_bottle_router()
+  + provides_location_router()
+}
+
+' Module Relationships
+FastAPI "1" --> "1" AuthModule : includes
+FastAPI "1" --> "1" ProfileModule : includes
+FastAPI "1" --> "1" HydrationModule : includes
+FastAPI "1" --> "1" ActivityModule : includes
+FastAPI "1" --> "1" BottleLocationModule : includes
+
+FastAPI "1" --> "1" Database : uses
+FastAPI "1" --> "1" Config : uses
+FastAPI "1" --> "1" ErrorHandler : uses
+
+' Module Dependencies
+ProfileModule "1" ..> "1" AuthModule : depends on
+HydrationModule "1" ..> "1" AuthModule : depends on
+ActivityModule "1" ..> "1" AuthModule : depends on
+BottleLocationModule "1" ..> "1" AuthModule : depends on
+
+' ' Module Descriptions
+' note top of AuthModule
+'   Handles user authentication,
+'   registration, and token management
+' end note
+
+' note top of ProfileModule
+'   Manages user profile information
+'   and preferences
+' end note
+
+' note top of HydrationModule
+'   Tracks water intake and
+'   hydration goals
+' end note
+
+' note top of ActivityModule
+'   Logs and summarizes
+'   user activity data
+' end note
+
+' note top of BottleLocationModule
+'   Manages smart bottle data
+'   and location services
+' end note
+
+' Database Connection
+Database "1" --> "1" Config : reads from
+
+@enduml

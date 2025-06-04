@@ -1,0 +1,9 @@
+'==================== 8. 액츄에이터 상태 머신 ====================
+@startuml Actuator_StateMachine
+  [*] --> Idle
+  Idle      --> Activate   : alert trigger
+  Activate  --> Deactivate : duration elapsed / ACK
+  Activate  --> Error      : command failure
+  Deactivate--> Idle
+  Error     --> Idle       : recover
+@enduml

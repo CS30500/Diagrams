@@ -1,0 +1,50 @@
+@startuml ActivityModule
+
+' Domain
+interface ActivityService {
+  +log_activity(user_id: int, activity_data: ActivityCreate): ActivityLog
+  +get_user_activities(user_id: int, date: date): List[ActivityLog]
+  +get_activity_summary(user_id: int, start_date: date, end_date: date): ActivitySummary
+}
+
+' Models
+class ActivityLog {
+  +id: int
+  +user_id: int
+  +steps: int
+  +calories_burned: float
+  +distance_km: float
+  +activity_date: date
+  +created_at: datetime
+}
+
+class ActivityCreate {
+  +steps: int
+  +calories_burned: float
+  +distance_km: float
+  +activity_date: date
+}
+
+class ActivitySummary {
+  +total_steps: int
+  +total_calories: float
+  +total_distance: float
+  +average_steps: float
+  +activities: List[ActivityLog]
+}
+
+' Router
+class ActivityRouter {
+  +router: APIRouter
+  +log_activity(activity: ActivityCreate, current_user: User)
+  +get_activities(date: date | None, current_user: User)
+  +get_summary(start_date: date, end_date: date, current_user: User)
+}
+
+' Relationships
+ActivityRouter "1" --> "1" ActivityService : uses
+ActivityService "1" --> "0..*" ActivityLog : returns
+ActivityService "1" --> "0..*" ActivitySummary : returns
+ActivitySummary "1" --> "0..*" ActivityLog : contains
+
+@enduml

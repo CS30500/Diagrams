@@ -1,0 +1,14 @@
+'==================== 2. BLE / Sync 상태 머신 ====================
+@startuml BLE_Sync_StateMachine
+  [*] --> Idle
+  Idle      --> Scanning   : sync trigger
+  Scanning   --> Connecting : connect()
+  Connecting   --> Connected  : Success
+  Connecting   --> Error      : Failed
+  Connected    --> Disconnected : Disconnect
+  Connected    --> Syncing    : Start Sync
+  Syncing      --> Connected  : Sync Complete
+  Syncing      --> Error      : Sync Failed
+  Error        --> [*]        : Max Retries
+  Error        --> Connecting : Retry
+@enduml
