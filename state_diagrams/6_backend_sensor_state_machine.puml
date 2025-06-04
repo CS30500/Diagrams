@@ -1,0 +1,172 @@
+@startuml Backend Sensor State Machine
+
+title Backend Sensor State Machine
+
+[*] --> SensorIdle : Initial state
+
+state SensorIdle {
+    [*] --> Waiting
+    Waiting --> DataReceived : Sensor data received
+}
+
+state DataReceived {
+    [*] --> DataValidation
+    DataValidation --> ValidData : Data format correct
+    DataValidation --> InvalidData : Data format incorrect
+    
+    InvalidData --> DataRejected : Log error and discard
+    DataRejected --> Waiting : Return to waiting
+    
+    ValidData --> DataClassification : Classify sensor type
+}
+
+state DataClassification {
+    [*] --> TypeIdentification
+    TypeIdentification --> WaterIntakeData : Water consumption detected
+    TypeIdentification --> TemperatureData : Temperature reading
+    TypeIdentification --> ActivityData : Activity/movement data
+    TypeIdentification --> LocationData : Location information
+    TypeIdentification --> UnknownData : Unrecognized data type
+    
+    UnknownData --> DataRejected : Discard unknown data
+}
+
+state WaterIntakeData {
+    [*] --> IntakeProcessing
+    IntakeProcessing --> IntakeValidation : Validate intake amount
+    IntakeValidation --> IntakeValid : Amount within normal range
+    IntakeValidation --> IntakeInvalid : Amount suspicious/invalid
+    
+    IntakeValid --> DatabaseUpdate : Store water log
+    IntakeInvalid --> IntakeRejected : Reject suspicious data
+    
+    DatabaseUpdate --> TargetCalculation : Update daily progress
+    TargetCalculation --> AlertEvaluation : Check alert conditions
+    IntakeRejected --> Waiting : Return to waiting
+}
+
+state TemperatureData {
+    [*] --> TempProcessing
+    TempProcessing --> TempValidation : Validate temperature range
+    TempValidation --> TempValid : Temperature reasonable
+    TempValidation --> TempInvalid : Temperature out of range
+    
+    TempValid --> TempStorage : Store temperature reading
+    TempInvalid --> TempRejected : Reject invalid reading
+    
+    TempStorage --> WaterQualityCheck : Assess water quality
+    WaterQualityCheck --> QualityGood : Water quality acceptable
+    WaterQualityCheck --> QualityPoor : Water needs replacement
+    
+    QualityGood --> AlertEvaluation : Continue monitoring
+    QualityPoor --> WaterAlert : Generate water quality alert
+    TempRejected --> Waiting : Return to waiting
+}
+
+state ActivityData {
+    [*] --> ActivityProcessing
+    ActivityProcessing --> ActivityValidation : Validate activity data
+    ActivityValidation --> ActivityValid : Data within normal range
+    ActivityValidation --> ActivityInvalid : Data suspicious
+    
+    ActivityValid --> ActivityStorage : Store activity log
+    ActivityInvalid --> ActivityRejected : Reject invalid data
+    
+    ActivityStorage --> CalorieCalculation : Calculate calories burned
+    CalorieCalculation --> ActivityLevelCheck : Assess activity level
+    ActivityLevelCheck --> NormalActivity : Normal activity level
+    ActivityLevelCheck --> HighActivity : High activity detected
+    
+    NormalActivity --> AlertEvaluation : Continue monitoring
+    HighActivity --> ActivityAlert : Generate hydration reminder
+    ActivityRejected --> Waiting : Return to waiting
+}
+
+state LocationData {
+    [*] --> LocationProcessing
+    LocationProcessing --> LocationValidation : Validate coordinates
+    LocationValidation --> LocationValid : Valid GPS coordinates
+    LocationValidation --> LocationInvalid : Invalid coordinates
+    
+    LocationValid --> LocationStorage : Store location data
+    LocationInvalid --> LocationRejected : Reject invalid location
+    
+    LocationStorage --> WeatherCheck : Check weather conditions
+    WeatherCheck --> WeatherNormal : Normal weather
+    WeatherCheck --> WeatherExtreme : Extreme temperature/humidity
+    
+    WeatherNormal --> AlertEvaluation : Continue monitoring
+    WeatherExtreme --> WeatherAlert : Generate weather-based alert
+    LocationRejected --> Waiting : Return to waiting
+}
+
+state AlertEvaluation {
+    [*] --> ConditionChecking
+    ConditionChecking --> InactivityCheck : Check time since last drink
+    ConditionChecking --> TargetCheck : Check daily target progress
+    ConditionChecking --> RateCheck : Check consumption rate
+    
+    InactivityCheck --> InactivityAlert : Long inactivity detected
+    InactivityCheck --> NoInactivityAlert : Activity within normal range
+    
+    TargetCheck --> TargetAlert : Behind daily target
+    TargetCheck --> NoTargetAlert : On track with target
+    
+    RateCheck --> RateAlert : Consumption rate too high/low
+    RateCheck --> NoRateAlert : Normal consumption rate
+    
+    InactivityAlert --> AlertGeneration : Generate inactivity alert
+    TargetAlert --> AlertGeneration : Generate target alert
+    RateAlert --> AlertGeneration : Generate rate alert
+    WaterAlert --> AlertGeneration : Generate water quality alert
+    ActivityAlert --> AlertGeneration : Generate activity alert
+    WeatherAlert --> AlertGeneration : Generate weather alert
+    
+    NoInactivityAlert --> Waiting : Return to waiting
+    NoTargetAlert --> Waiting : Return to waiting
+    NoRateAlert --> Waiting : Return to waiting
+}
+
+state AlertGeneration {
+    [*] --> AlertCreation
+    AlertCreation --> FCMTokenCheck : Check user FCM token
+    FCMTokenCheck --> TokenAvailable : FCM token exists
+    FCMTokenCheck --> NoToken : No FCM token
+    
+    TokenAvailable --> NotificationSend : Send push notification
+    NoToken --> AlertLogged : Log alert without sending
+    
+    NotificationSend --> NotificationSuccess : Notification sent
+    NotificationSend --> NotificationFailed : Send failed
+    
+    NotificationSuccess --> AlertLogged : Log successful alert
+    NotificationFailed --> TokenCleanup : Clean invalid token
+    
+    AlertLogged --> Waiting : Return to waiting
+    TokenCleanup --> Waiting : Return to waiting
+}
+
+note right of WaterIntakeData
+  Processes water consumption:
+  - Validates intake amount
+  - Updates daily progress
+  - Triggers hydration alerts
+end note
+
+note right of TemperatureData
+  Monitors water quality:
+  - Tracks water temperature
+  - Calculates degradation rate
+  - Alerts for water replacement
+end note
+
+note left of AlertEvaluation
+  Alert conditions:
+  - 2+ hours without drinking
+  - Behind daily target
+  - High activity periods
+  - Extreme weather
+  - Poor water quality
+end note
+
+@enduml 

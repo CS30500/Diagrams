@@ -1,0 +1,87 @@
+@startuml Frontend BLE Sync State Machine
+
+title Frontend BLE Sync State Machine
+
+[*] --> Disconnected : Initial state
+
+state Disconnected {
+    [*] --> Idle
+    Idle --> ScanRequested : Start scan request
+}
+
+state ScanRequested {
+    [*] --> Scanning
+    Scanning --> DeviceFound : HMSoft device detected
+    Scanning --> ScanTimeout : 10 seconds elapsed
+    Scanning --> ScanStopped : Manual stop
+    
+    DeviceFound --> Connecting : Auto connect to device
+    ScanTimeout --> Idle : Return to idle
+    ScanStopped --> Idle : Return to idle
+}
+
+state Connecting {
+    [*] --> GattConnecting
+    GattConnecting --> Connected : GATT connection successful
+    GattConnecting --> ConnectionFailed : GATT connection failed
+    
+    ConnectionFailed --> Idle : Return to disconnected
+}
+
+state Connected {
+    [*] --> ServiceDiscovery
+    ServiceDiscovery --> ServiceDiscovered : Services found
+    ServiceDiscovery --> ServiceDiscoveryFailed : Services not found
+    
+    ServiceDiscovered --> NotificationSetup : Setup notifications
+    NotificationSetup --> Ready : Notifications enabled
+    NotificationSetup --> NotificationFailed : Notification setup failed
+    
+    ServiceDiscoveryFailed --> Disconnecting : Cleanup connection
+    NotificationFailed --> Disconnecting : Cleanup connection
+}
+
+state Ready {
+    [*] --> Listening
+    Listening --> DataReceived : BLE data received
+    Listening --> CommandSending : Send command to device
+    
+    DataReceived --> DataProcessing : Process received data
+    DataProcessing --> Listening : Data processed
+    
+    CommandSending --> CommandSent : Command transmitted
+    CommandSent --> Listening : Return to listening
+    CommandSent --> CommandFailed : Transmission failed
+    CommandFailed --> Listening : Retry or continue
+}
+
+state Disconnecting {
+    [*] --> GattDisconnecting
+    GattDisconnecting --> Cleanup : Close GATT connection
+    Cleanup --> Idle : Resources released
+}
+
+Connected --> Disconnecting : Connection lost
+Ready --> Disconnecting : Disconnect request
+Disconnecting --> Idle : Cleanup complete
+
+note right of ScanRequested
+  Scans for HMSoft devices
+  with 10-second timeout
+  Uses low latency scan mode
+end note
+
+note right of Ready
+  Handles bidirectional communication:
+  - Receives sensor data
+  - Sends commands (BUZZ_ON, etc.)
+  - Processes water intake data
+end note
+
+note left of Connected
+  Uses standard BLE UUIDs:
+  Service: 0000ffe0-0000-1000-8000-00805f9b34fb
+  Characteristic: 0000ffe1-0000-1000-8000-00805f9b34fb
+end note
+
+@enduml 
