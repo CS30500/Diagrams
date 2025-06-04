@@ -3,114 +3,34 @@
 title Backend Server State Machine
 
 [*] --> ServerStartup : Server launch
+ServerStartup --> ServerReady : Startup complete
+ServerStartup --> [*] : Startup failed
 
-state ServerStartup {
-    [*] --> Initializing
-    Initializing --> DatabaseConnection : Connect to MongoDB
-    DatabaseConnection --> RouterSetup : Setup API routers
-    RouterSetup --> SchedulerStartup : Start background scheduler
-    SchedulerStartup --> ServerReady : Server ready to accept requests
-    
-    DatabaseConnection --> StartupFailed : DB connection failed
-    SchedulerStartup --> StartupFailed : Scheduler failed
-    StartupFailed --> ServerShutdown : Cleanup and exit
-}
+ServerReady --> RequestProcessing : HTTP request
+RequestProcessing --> AuthCheck : Validate token
+AuthCheck --> BusinessLogic : Valid token
+AuthCheck --> ErrorResponse : Invalid token
 
-state ServerReady {
-    [*] --> Listening
-    Listening --> RequestReceived : HTTP request received
-    RequestReceived --> RequestProcessing : Route to handler
-    
-    RequestProcessing --> AuthenticationCheck : Validate JWT token
-    AuthenticationCheck --> Authenticated : Valid token
-    AuthenticationCheck --> Unauthorized : Invalid/missing token
-    
-    Authenticated --> BusinessLogic : Execute endpoint logic
-    Unauthorized --> ErrorResponse : Return 401 error
-    
-    BusinessLogic --> DatabaseOperation : Query/update database
-    DatabaseOperation --> DatabaseSuccess : Operation successful
-    DatabaseOperation --> DatabaseError : Operation failed
-    
-    DatabaseSuccess --> SuccessResponse : Return success response
-    DatabaseError --> ErrorResponse : Return error response
-    
-    SuccessResponse --> Listening : Response sent
-    ErrorResponse --> Listening : Error response sent
-}
+BusinessLogic --> DatabaseOp : Process request
+DatabaseOp --> SuccessResponse : DB success
+DatabaseOp --> ErrorResponse : DB error
 
-state SchedulerActive {
-    [*] --> SchedulerRunning
-    SchedulerRunning --> AlertJobTriggered : 5-second interval
-    AlertJobTriggered --> UserIteration : Process all users
-    
-    UserIteration --> UserProcessing : Process individual user
-    UserProcessing --> AlertConditionCheck : Check alert conditions
-    
-    AlertConditionCheck --> AlertRequired : Conditions met
-    AlertConditionCheck --> NoAlert : No alerts needed
-    AlertConditionCheck --> UserProcessing : Next user
-    
-    AlertRequired --> FCMTokenCheck : Check FCM token
-    FCMTokenCheck --> TokenFound : Valid token exists
-    FCMTokenCheck --> TokenMissing : No token found
-    
-    TokenFound --> NotificationSending : Send push notification
-    TokenMissing --> AlertSkipped : Skip notification
-    
-    NotificationSending --> NotificationSent : FCM successful
-    NotificationSending --> NotificationFailed : FCM failed
-    
-    NotificationSent --> AlertLogged : Log alert sent
-    NotificationFailed --> TokenCleanup : Clean invalid token
-    AlertSkipped --> UserProcessing : Continue to next user
-    AlertLogged --> UserProcessing : Continue to next user
-    TokenCleanup --> UserProcessing : Continue to next user
-    
-    UserProcessing --> SchedulerRunning : All users processed
-}
+SuccessResponse --> ServerReady : Response sent
+ErrorResponse --> ServerReady : Error sent
 
-ServerReady --> SchedulerActive : Scheduler running concurrently
-SchedulerActive --> ServerReady : Scheduler continues
+ServerReady --> AlertScheduler : Background scheduler
+AlertScheduler --> AlertCheck : Check all users
+AlertCheck --> SendNotification : Alert needed
+AlertCheck --> AlertScheduler : No alerts
+SendNotification --> AlertScheduler : Notification sent
 
-state ServerShutdown {
-    [*] --> SchedulerStopping
-    SchedulerStopping --> DatabaseDisconnection : Stop scheduler
-    DatabaseDisconnection --> ResourceCleanup : Close DB connections
-    ResourceCleanup --> ServerStopped : Server terminated
-}
+ServerReady --> [*] : Shutdown
 
-ServerReady --> ServerShutdown : Shutdown signal
-SchedulerActive --> ServerShutdown : Shutdown signal
-ServerShutdown --> [*] : Server stopped
-
-note right of SchedulerActive
-  Background scheduler runs:
+note right of AlertScheduler
+  Runs every 5 seconds:
   - Inactivity alerts
-  - Morning target reminders
-  - High activity alerts
-  - Temperature warnings
-  - Urgent rate alerts
-  - Water status alerts
-end note
-
-note right of BusinessLogic
-  API endpoints:
-  - /auth/* (login, register, FCM)
-  - /hydration/* (water tracking)
-  - /profile/* (user settings)
-  - /activity/* (activity logs)
-  - /location/* (location data)
-  - /bottle/* (bottle status)
-end note
-
-note left of AlertConditionCheck
-  Alert conditions:
-  - Time since last drink
-  - Daily target progress
-  - Activity level changes
-  - Temperature thresholds
-  - Water quality status
+  - Target reminders
+  - Activity alerts
 end note
 
 @enduml 

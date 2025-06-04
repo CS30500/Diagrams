@@ -3,104 +3,27 @@
 title Frontend Session State Machine
 
 [*] --> AppClosed : Initial state
+AppClosed --> AppStarting : App launch
+AppStarting --> Foreground : App ready
 
-state AppClosed {
-    [*] --> Terminated
-    Terminated --> AppLaunching : App launch
-}
+Foreground --> Background : App minimized
+Background --> Foreground : App resumed
+Foreground --> ServiceActive : Start tracking
 
-state AppLaunching {
-    [*] --> Initializing
-    Initializing --> DependencyInjection : Setup Koin modules
-    DependencyInjection --> NotificationSetup : Create notification channels
-    NotificationSetup --> PermissionCheck : Check runtime permissions
-    PermissionCheck --> SessionReady : All permissions granted
-    PermissionCheck --> PermissionPending : Waiting for permissions
-    
-    PermissionPending --> SessionReady : Permissions granted
-    PermissionPending --> AppClosed : Permissions denied/app closed
-}
+ServiceActive --> Foreground : Service stopped
+ServiceActive --> Background : App backgrounded
+Background --> AppClosed : App killed
 
-state SessionReady {
-    [*] --> Foreground
-    Foreground --> Background : App minimized
-    Foreground --> ServiceStarting : Start tracking service
-    
-    Background --> Foreground : App resumed
-    Background --> AppClosed : App killed by system
-    
-    ServiceStarting --> ServiceActive : Service started successfully
-    ServiceStarting --> Foreground : Service start failed
-}
+ServiceActive --> TrackingData : Collecting data
+TrackingData --> ServiceActive : Data synced
 
-state ServiceActive {
-    [*] --> BleConnecting
-    BleConnecting --> BleConnected : BLE connection established
-    BleConnecting --> BleConnectionFailed : BLE connection failed
-    
-    BleConnected --> DataTracking : Start data collection
-    BleConnectionFailed --> BleRetrying : Retry connection
-    BleRetrying --> BleConnected : Retry successful
-    BleRetrying --> BleConnectionFailed : Retry failed
-    
-    DataTracking --> DataSyncing : Sync data with server
-    DataSyncing --> DataTracking : Sync completed
-    DataSyncing --> SyncFailed : Sync failed
-    SyncFailed --> DataTracking : Continue tracking
-}
-
-state Background {
-    [*] --> Minimized
-    Minimized --> ServiceRunning : Service continues in background
-    ServiceRunning --> NotificationActive : Show persistent notification
-    NotificationActive --> ServiceRunning : Notification displayed
-    
-    ServiceRunning --> ServiceStopped : Stop service request
-    ServiceStopped --> Minimized : Service cleaned up
-}
-
-ServiceActive --> ServiceStopping : Stop service request
-ServiceActive --> Background : App backgrounded with service
-
-state ServiceStopping {
-    [*] --> BleDisconnecting
-    BleDisconnecting --> ResourceCleanup : Disconnect BLE
-    ResourceCleanup --> ServiceStopped : Resources released
-    ServiceStopped --> Foreground : Return to foreground
-}
-
-SessionReady --> AppClosing : App close request
-Background --> AppClosing : App termination
-ServiceActive --> AppClosing : Force close
-
-state AppClosing {
-    [*] --> ServiceCleanup
-    ServiceCleanup --> ResourceRelease : Stop all services
-    ResourceRelease --> AppClosed : App terminated
-}
+Foreground --> AppClosed : App exit
+ServiceActive --> AppClosed : Force close
 
 note right of ServiceActive
-  Foreground service with:
+  - BLE connection active
+  - Background data collection
   - Persistent notification
-  - BLE data collection
-  - Background data sync
-  - Device command sending
-end note
-
-note right of DataTracking
-  Tracks:
-  - Water intake from BLE
-  - Temperature readings
-  - Device status
-  - User interactions
-end note
-
-note left of Background
-  Background limitations:
-  - Service continues running
-  - Limited network access
-  - Battery optimization affects
-  - Notification required
 end note
 
 @enduml 

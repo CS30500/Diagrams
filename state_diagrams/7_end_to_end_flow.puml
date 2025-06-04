@@ -2,196 +2,43 @@
 
 title End-to-End Flow State Machine
 
-[*] --> SystemIdle : System startup
+[*] --> AppStarted : User starts app
+AppStarted --> BleConnected : Connect to smart bottle
+BleConnected --> Monitoring : Start monitoring
 
-state SystemIdle {
-    [*] --> AppLaunched
-    AppLaunched --> BleScanning : User starts app
-}
+Monitoring --> SensorData : Sensor data received
+SensorData --> DataProcessed : Process locally
+DataProcessed --> ServerSync : Sync with backend
 
-state BleScanning {
-    [*] --> ScanningForDevice
-    ScanningForDevice --> DeviceFound : Smart bottle detected
-    ScanningForDevice --> ScanTimeout : No device found
-    
-    DeviceFound --> BleConnecting : Initiate connection
-    ScanTimeout --> UserRetry : Prompt user to retry
-    UserRetry --> ScanningForDevice : User retries scan
-}
+ServerSync --> DataStored : Store in database
+DataStored --> AlertCheck : Check alert conditions
+AlertCheck --> NoAlert : Conditions normal
+AlertCheck --> AlertGenerated : Alert needed
 
-state BleConnecting {
-    [*] --> EstablishingConnection
-    EstablishingConnection --> ConnectionEstablished : BLE GATT connected
-    EstablishingConnection --> ConnectionFailed : Connection failed
-    
-    ConnectionFailed --> BleScanning : Retry scanning
-    ConnectionEstablished --> DataChannelSetup : Setup notifications
-}
+NoAlert --> Monitoring : Continue monitoring
+AlertGenerated --> FCMSent : Send push notification
+FCMSent --> UserNotified : User receives alert
 
-state DataChannelSetup {
-    [*] --> ConfiguringNotifications
-    ConfiguringNotifications --> ChannelReady : Notifications enabled
-    ConfiguringNotifications --> SetupFailed : Setup failed
-    
-    SetupFailed --> BleConnecting : Retry connection
-    ChannelReady --> ActiveMonitoring : Start monitoring
-}
+UserNotified --> UserAction : User responds
+UserAction --> Monitoring : Continue monitoring
 
-state ActiveMonitoring {
-    [*] --> WaitingForSensorData
-    WaitingForSensorData --> SensorDataReceived : Data from smart bottle
-    
-    SensorDataReceived --> DataProcessing : Process sensor reading
-    DataProcessing --> WaterIntakeDetected : Water consumption
-    DataProcessing --> TemperatureReading : Temperature data
-    DataProcessing --> ActivityDetected : Movement/activity
-    DataProcessing --> InvalidData : Corrupted/invalid data
-    
-    InvalidData --> WaitingForSensorData : Discard and continue
-}
+ServerSync --> SyncFailed : Network error
+SyncFailed --> LocalStorage : Store locally
+LocalStorage --> ServerSync : Retry sync
 
-state WaterIntakeDetected {
-    [*] --> LocalProcessing
-    LocalProcessing --> DataValidation : Validate intake amount
-    DataValidation --> ValidIntake : Amount reasonable
-    DataValidation --> SuspiciousIntake : Amount suspicious
-    
-    SuspiciousIntake --> WaitingForSensorData : Discard suspicious data
-    ValidIntake --> ServerSync : Sync with backend
-}
-
-state ServerSync {
-    [*] --> AuthenticationCheck
-    AuthenticationCheck --> TokenValid : JWT token valid
-    AuthenticationCheck --> TokenExpired : Token expired/invalid
-    
-    TokenExpired --> ReAuthentication : Redirect to login
-    TokenValid --> DataTransmission : Send data to server
-    
-    DataTransmission --> ServerReceived : Server acknowledges
-    DataTransmission --> NetworkError : Network/server error
-    
-    NetworkError --> RetrySync : Retry with backoff
-    RetrySync --> DataTransmission : Retry transmission
-    ServerReceived --> ServerProcessing : Server processes data
-}
-
-state ServerProcessing {
-    [*] --> DatabaseUpdate
-    DatabaseUpdate --> DataStored : Data saved to MongoDB
-    DatabaseUpdate --> DatabaseError : Database error
-    
-    DatabaseError --> ErrorLogged : Log error and continue
-    DataStored --> AlertEvaluation : Check alert conditions
-    
-    AlertEvaluation --> NoAlertsNeeded : All conditions normal
-    AlertEvaluation --> AlertsRequired : Alert conditions met
-    
-    NoAlertsNeeded --> BackgroundMonitoring : Continue monitoring
-    AlertsRequired --> AlertGeneration : Generate alerts
-}
-
-state AlertGeneration {
-    [*] --> AlertConditionCheck
-    AlertConditionCheck --> InactivityAlert : Long time without drinking
-    AlertConditionCheck --> TargetAlert : Behind daily target
-    AlertConditionCheck --> ActivityAlert : High activity detected
-    AlertConditionCheck --> TemperatureAlert : Water quality issue
-    AlertConditionCheck --> WeatherAlert : Extreme weather
-    
-    InactivityAlert --> FCMPreparation : Prepare notification
-    TargetAlert --> FCMPreparation : Prepare notification
-    ActivityAlert --> FCMPreparation : Prepare notification
-    TemperatureAlert --> FCMPreparation : Prepare notification
-    WeatherAlert --> FCMPreparation : Prepare notification
-}
-
-state FCMPreparation {
-    [*] --> TokenRetrieval
-    TokenRetrieval --> TokenFound : FCM token available
-    TokenRetrieval --> TokenMissing : No FCM token
-    
-    TokenMissing --> AlertLogged : Log alert without sending
-    TokenFound --> NotificationSending : Send push notification
-    
-    NotificationSending --> FCMSuccess : Notification delivered
-    NotificationSending --> FCMFailure : Delivery failed
-    
-    FCMSuccess --> UserNotification : User receives notification
-    FCMFailure --> TokenCleanup : Clean invalid token
-    AlertLogged --> BackgroundMonitoring : Continue monitoring
-    TokenCleanup --> BackgroundMonitoring : Continue monitoring
-}
-
-state UserNotification {
-    [*] --> NotificationDisplayed
-    NotificationDisplayed --> UserInteraction : User taps notification
-    NotificationDisplayed --> NotificationIgnored : User ignores
-    
-    UserInteraction --> AppOpened : Open app
-    NotificationIgnored --> BackgroundMonitoring : Continue monitoring
-    
-    AppOpened --> UserAction : User sees current status
-    UserAction --> DrinkingAction : User drinks water
-    UserAction --> AppNavigation : User navigates app
-    
-    DrinkingAction --> ActiveMonitoring : Detect new water intake
-    AppNavigation --> ActiveMonitoring : Continue monitoring
-}
-
-state BackgroundMonitoring {
-    [*] --> SchedulerActive
-    SchedulerActive --> PeriodicCheck : 5-second interval
-    PeriodicCheck --> AlertEvaluation : Check all users
-    PeriodicCheck --> SchedulerActive : Continue scheduling
-}
-
-state ReAuthentication {
-    [*] --> LoginPrompt
-    LoginPrompt --> UserLogin : User provides credentials
-    LoginPrompt --> AuthCancelled : User cancels
-    
-    UserLogin --> AuthSuccess : Login successful
-    UserLogin --> AuthFailed : Login failed
-    
-    AuthSuccess --> ServerSync : Resume data sync
-    AuthFailed --> LoginPrompt : Retry login
-    AuthCancelled --> LocalMode : Continue without sync
-}
-
-state LocalMode {
-    [*] --> OfflineTracking
-    OfflineTracking --> LocalDataStorage : Store data locally
-    LocalDataStorage --> ActiveMonitoring : Continue monitoring
-    LocalDataStorage --> ReAuthentication : User retries auth
-}
-
-TemperatureReading --> ServerSync : Sync temperature data
-ActivityDetected --> ServerSync : Sync activity data
-BackgroundMonitoring --> AlertGeneration : Scheduled alerts triggered
-
-note right of ActiveMonitoring
-  Continuous monitoring of:
-  - Water intake via BLE
+note right of Monitoring
+  Continuous monitoring:
+  - Water intake detection
   - Temperature readings
-  - Activity/movement data
-  - Device connectivity status
+  - Activity tracking
 end note
 
-note right of ServerProcessing
-  Backend processing:
-  - Data validation and storage
-  - Alert condition evaluation
-  - User profile updates
-  - Historical data analysis
-end note
-
-note left of UserNotification
-  Push notifications for:
-  - Hydration reminders
-  - Water quality alerts
+note right of AlertCheck
+  Alert types:
+  - Inactivity alerts
+  - Target reminders
+  - Water quality warnings
   - Activity-based suggestions
-  - Daily target progress
 end note
 
 @enduml 

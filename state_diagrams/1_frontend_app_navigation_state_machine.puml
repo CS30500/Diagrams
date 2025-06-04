@@ -3,62 +3,23 @@
 title Frontend App Navigation State Machine
 
 [*] --> AppStartup : App Launch
+AppStartup --> Login : Permissions OK
+AppStartup --> [*] : Permissions Denied
 
-state AppStartup {
-    [*] --> PermissionCheck
-    PermissionCheck --> PermissionGranted : All permissions granted
-    PermissionCheck --> PermissionDialog : Missing permissions
-    PermissionDialog --> PermissionGranted : User grants permissions
-    PermissionDialog --> PermissionDenied : User denies permissions
-    PermissionDenied --> AppSettings : Permanently denied
-    AppSettings --> PermissionCheck : User returns
-}
-
-AppStartup --> AuthFlow : Permissions ready
-
-state AuthFlow {
-    [*] --> LoginScreen
-    LoginScreen --> RegisterScreen : Register button
-    RegisterScreen --> LoginScreen : Registration complete
-    LoginScreen --> MainApp : Login successful
-}
+Login --> Register : Register button
+Register --> Login : Registration complete
+Login --> MainApp : Login successful
 
 state MainApp {
-    [*] --> HomeScreen
-    HomeScreen --> ProfileScreen : Profile tab
-    HomeScreen --> HistoryScreen : History tab
-    HomeScreen --> NotificationScreen : Notification button
+    [*] --> Home
+    Home --> Profile : Profile tab
+    Home --> History : History tab
     
-    ProfileScreen --> HomeScreen : Home tab
-    ProfileScreen --> HistoryScreen : History tab
-    ProfileScreen --> NotificationScreen : Notification button
-    
-    HistoryScreen --> HomeScreen : Home tab
-    HistoryScreen --> ProfileScreen : Profile tab
-    HistoryScreen --> NotificationScreen : Notification button
-    
-    NotificationScreen --> HomeScreen : Back/Home
-    NotificationScreen --> ProfileScreen : Profile tab
-    NotificationScreen --> HistoryScreen : History tab
+    Profile --> Home : Home tab
+    History --> Home : Home tab
 }
 
-MainApp --> AuthFlow : Logout
-AuthFlow --> [*] : App Exit
-
-note right of AppStartup
-  Handles runtime permissions:
-  - Bluetooth permissions
-  - Location permissions
-  - Notification permissions
-  - Foreground service permissions
-end note
-
-note right of MainApp
-  Bottom navigation with:
-  - Home (water tracking)
-  - History (consumption data)
-  - Profile (user settings)
-  - Notifications (alerts)
-end note
+MainApp --> Login : Logout
+Login --> [*] : App Exit
 
 @enduml 

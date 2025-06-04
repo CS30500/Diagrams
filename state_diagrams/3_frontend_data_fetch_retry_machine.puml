@@ -3,103 +3,25 @@
 title Frontend Data Fetch Retry Machine
 
 [*] --> Idle : Initial state
+Idle --> FetchRequested : Data request
 
-state Idle {
-    [*] --> Ready
-    Ready --> FetchRequested : Data fetch request
-}
+FetchRequested --> NetworkRequest : JWT token valid
+FetchRequested --> AuthRequired : No/invalid token
 
-state FetchRequested {
-    [*] --> ValidatingToken
-    ValidatingToken --> TokenValid : JWT token exists
-    ValidatingToken --> TokenMissing : No JWT token
-    
-    TokenMissing --> AuthenticationRequired : Redirect to login
-    TokenValid --> NetworkRequest : Proceed with request
-}
+NetworkRequest --> Success : Response OK
+NetworkRequest --> RetryLogic : Network error
+NetworkRequest --> AuthRequired : 401 Unauthorized
 
-state NetworkRequest {
-    [*] --> Connecting
-    Connecting --> RequestSent : HTTP request sent
-    RequestSent --> ResponseReceived : Server response
-    RequestSent --> NetworkTimeout : Request timeout
-    RequestSent --> NetworkError : Connection error
-    
-    ResponseReceived --> ResponseProcessing : Parse response
-}
+RetryLogic --> NetworkRequest : Retry request
+RetryLogic --> Failed : Max retries exceeded
 
-state ResponseProcessing {
-    [*] --> ValidatingResponse
-    ValidatingResponse --> ResponseValid : Valid JSON response
-    ValidatingResponse --> ResponseInvalid : Invalid/corrupted response
-    
-    ResponseValid --> DataMapping : Map DTO to domain model
-    DataMapping --> Success : Data successfully mapped
-    DataMapping --> MappingError : Mapping failed
-    
-    ResponseInvalid --> RetryDecision : Determine retry strategy
-    MappingError --> RetryDecision : Determine retry strategy
-}
+Success --> Idle : Data received
+Failed --> Idle : Error reported
+AuthRequired --> Idle : Redirect to login
 
-state RetryDecision {
-    [*] --> EvaluatingError
-    EvaluatingError --> RetryableError : Temporary network issue
-    EvaluatingError --> NonRetryableError : Permanent error (401, 403)
-    EvaluatingError --> CancellationError : Request cancelled
-    
-    RetryableError --> RetryDelay : Wait before retry
-    NonRetryableError --> Failure : Report permanent failure
-    CancellationError --> Cancelled : Propagate cancellation
-}
-
-state RetryDelay {
-    [*] --> Waiting
-    Waiting --> RetryReady : Delay completed
-    RetryReady --> NetworkRequest : Retry request
-}
-
-state Success {
-    [*] --> DataEmitted
-    DataEmitted --> Ready : Return to ready state
-}
-
-state Failure {
-    [*] --> ErrorEmitted
-    ErrorEmitted --> Ready : Return to ready state
-}
-
-state Cancelled {
-    [*] --> CancellationEmitted
-    CancellationEmitted --> Ready : Return to ready state
-}
-
-state AuthenticationRequired {
-    [*] --> AuthRedirect
-    AuthRedirect --> Ready : User re-authenticated
-}
-
-NetworkTimeout --> RetryDecision : Handle timeout
-NetworkError --> RetryDecision : Handle network error
-
-note right of NetworkRequest
-  HTTP GET to /hydration/today
-  with Bearer token authentication
-  Uses Ktor HTTP client
-end note
-
-note right of RetryDecision
-  Retry logic:
-  - Network errors: Retry with backoff
-  - Auth errors: Redirect to login
-  - Cancellation: Propagate immediately
-  - Other errors: Report failure
-end note
-
-note left of ResponseProcessing
-  Processes DailyHydrationDto:
-  - Validates JSON structure
-  - Maps to domain model
-  - Handles parsing errors
+note right of RetryLogic
+  Retry on network errors
+  with exponential backoff
 end note
 
 @enduml 
